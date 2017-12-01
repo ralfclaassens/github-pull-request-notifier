@@ -6,13 +6,14 @@ require "graphql"
 require "graphql/client/http"
 require "graphql/client"
 
-GITHUB_USERNAME = 'rclaassens'
-
 class GithubPlugin
+
+  GITHUB_USERNAME = 'rclaassens'
+  PERSONAL_ACCESS_TOKEN = '<access-token>'
 
   HTTP = GraphQL::Client::HTTP.new('https://api.github.com/graphql') do
     def headers(_context)
-      { "Authorization" => "bearer <access-token>" }
+      { "Authorization" => "bearer #{PERSONAL_ACCESS_TOKEN}" }
     end
   end
 
@@ -45,36 +46,17 @@ class GithubPlugin
     user(login: "rclaassens") {
       pullRequests(first: 100, states: OPEN) {
         totalCount
-        nodes {
-          createdAt
-          number
-          title
-        }
-        pageInfo {
-          hasNextPage
-          endCursor
-        }
       }
     }
   }
   GRAPHQL
 
-  def initialize(username)
-    @username = username
-    @output = nil
-  end
-
-  def query
-    Client.query Query
-  end
-
   def execute
-    data = query.data
-    count_review_requests = data.organization.repositories.nodes.map(&:pull_requests).flat_map(&:edges).map(&:node).flat_map(&:review_requests).flat_map(&:nodes).map(&:reviewer).map(&:login).count{ |login| login == 'rclaassens' }
+    data = Client.query(Query).data
+    count_review_requests = data.organization.repositories.nodes.map(&:pull_requests).flat_map(&:edges).map(&:node).flat_map(&:review_requests).flat_map(&:nodes).map(&:reviewer).map(&:login).count{ |login| login == "#{GITHUB_USERNAME}" }
     puts "Review requests: #{count_review_requests}"
     puts "Open PRs: #{data.user.pull_requests.total_count}"
   end
 end
 
-plugin = GithubPlugin.new(GITHUB_USERNAME)
-plugin.execute
+GithubPlugin.new.execute
